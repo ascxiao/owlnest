@@ -1,0 +1,124 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  padding: 24px 24px 0;
+}
+
+.modal-content p {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: #6b7280;
+  padding: 0 24px 16px;
+}
+
+.modal-content form {
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-content textarea {
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.modal-content textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.modal-buttons button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-buttons button[type="button"] {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.modal-buttons button[type="button"]:hover {
+  background: #d1d5db;
+}
+
+.modal-buttons button[type="submit"] {
+  background: #10b981;
+  color: white;
+}
+
+.modal-buttons button[type="submit"]:hover:not(:disabled) {
+  background: #059669;
+}
+
+.modal-buttons button[type="submit"]:disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
