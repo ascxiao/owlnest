@@ -6,6 +6,7 @@
 mod db;
 mod process_monitor;
 mod commands;
+mod icon;
 
 use process_monitor::{ProcessMonitor, ProcessEvent};
 use std::sync::Arc;
@@ -56,6 +57,7 @@ fn main() {
             commands::get_all_captures,
             commands::get_monitored_apps,
             commands::get_running_apps,
+            commands::get_all_apps,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

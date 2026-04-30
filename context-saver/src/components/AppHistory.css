@@ -1,0 +1,161 @@
+.app-history {
+  background-color: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-history-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 16px;
+  text-align: center;
+}
+
+.app-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.app-history-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.history-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.app-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.history-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.history-item-timestamp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 100px;
+  padding-right: 12px;
+  border-right: 1px solid #e5e7eb;
+}
+
+.timestamp-relative {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.timestamp-absolute {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.history-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-section label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-section p {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.history-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 1px solid #e5e7eb;
+  min-width: 60px;
+}
+
+.recall-badge {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recall-icon {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  fill: #6b7280;
+}
+
+/* Scrollbar styling */
+.app-history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.app-history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-history-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.app-history-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

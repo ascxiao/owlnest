@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 #[tauri::command]
 pub fn save_capture(
     app_name: String,
@@ -151,28 +149,8 @@ pub fn get_monitored_apps() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn get_running_apps() -> Result<Vec<String>, String> {
-    use sysinfo::System;
-    use std::collections::HashSet;
-    
-    let sys = System::new_all();
-    let monitored = vec![
-        "Stardew Valley.exe".to_string(),
-        "Code.exe".to_string(),
-        "Photoshop.exe".to_string(),
-    ];
-    
-    let mut running_set: HashSet<String> = HashSet::new();
-    for process in sys.processes().values() {
-        let process_name = process.name().to_string_lossy().to_string();
-        if monitored.contains(&process_name) {
-            running_set.insert(process_name);
-        }
-    }
-    
-    let mut running: Vec<String> = running_set.into_iter().collect();
-    running.sort();
-    Ok(running)
+pub fn get_running_apps() -> Result<Vec<crate::icon::AppInfo>, String> {
+    Ok(crate::icon::get_running_apps_with_icons())
 }
 
 #[derive(serde::Serialize)]
@@ -182,4 +160,9 @@ pub struct FullCaptureNote {
     pub where_left_off: String,
     pub next_step: String,
     pub captured_at: String,
+}
+
+#[tauri::command]
+pub fn get_all_apps() -> Result<Vec<crate::icon::AppInfo>, String> {
+    Ok(crate::icon::get_all_installed_apps())
 }

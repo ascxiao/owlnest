@@ -4,29 +4,38 @@ import { listen } from "@tauri-apps/api/event";
 import CaptureModal from "./components/CaptureModal";
 import RecallModal from "./components/RecallModal";
 import Dashboard from "./components/Dashboard";
+import Sidebar from "./components/Sidebar";
+import Settings from "./components/Settings";
+import { AppInfo } from "./utils/appIcons";
 import "./App.css";
 
 interface CaptureNote {
   id: string;
-  appName: string;
-  whereLeftOff: string;
-  nextStep: string;
-  captureAt: string;
-  recalledCount: number;
+  app_name: string;
+  where_left_off: string;
+  next_step: string;
+  captured_at: string;
+  recalled_count: number;
 }
 
 export default function App() {
   const [showCapture, setShowCapture] = useState(false);
   const [showRecall, setShowRecall] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [currentApp, setCurrentApp] = useState<string | null>(null);
+  const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [recallData, setRecallData] = useState<any>(null);
   const [allNotes, setAllNotes] = useState<CaptureNote[]>([]);
-  const [runningApps, setRunningApps] = useState<string[]>([]);
+  const [runningApps, setRunningApps] = useState<AppInfo[]>([]);
+  const [trackedApps, setTrackedApps] = useState<AppInfo[]>([]);
+  const [allAvailableApps, setAllAvailableApps] = useState<AppInfo[]>([]);
 
   // Load all notes on startup
   useEffect(() => {
     loadAllNotes();
     loadRunningApps();
+    loadTrackedApps();
+    loadAllAvailableApps();
   }, []);
 
   const loadAllNotes = async () => {
@@ -40,11 +49,35 @@ export default function App() {
 
   const loadRunningApps = async () => {
     try {
-      const apps = await invoke<string[]>("get_running_apps");
+      const apps = await invoke<AppInfo[]>("get_running_apps");
       console.log("Running apps:", apps);
       setRunningApps(apps || []);
     } catch (error) {
       console.error("Failed to load running apps:", error);
+    }
+  };
+
+  const loadTrackedApps = async () => {
+    try {
+      // For now, use running apps as tracked apps
+      // You can implement actual tracking list in Tauri backend
+      const apps = await invoke<AppInfo[]>("get_running_apps");
+      setTrackedApps(apps || []);
+    } catch (error) {
+      console.error("Failed to load tracked apps:", error);
+    }
+  };
+
+  const loadAllAvailableApps = async () => {
+    try {
+      // Load all installed applications from the system
+      const apps = await invoke<AppInfo[]>("get_all_apps");
+      console.log("All available apps:", apps);
+      setAllAvailableApps(apps || []);
+    } catch (error) {
+      console.error("Failed to load all available apps:", error);
+      // Fallback to running apps if backend doesn't support listing all apps
+      setAllAvailableApps(runningApps);
     }
   };
 
@@ -144,8 +177,14 @@ export default function App() {
     }
   };
 
+  const handleTrackedAppsChange = async (apps: AppInfo[]) => {
+    setTrackedApps(apps);
+    // TODO: Persist tracked apps to backend
+    // await invoke("set_tracked_apps", { apps: apps.map(a => a.name) });
+  };
+
   return (
-    <div className="app-container">
+    <div className="app-layout">
       {showCapture && currentApp && (
         <CaptureModal
           appName={currentApp}
@@ -156,9 +195,27 @@ export default function App() {
       {showRecall && recallData && (
         <RecallModal data={recallData} onClose={() => setShowRecall(false)} />
       )}
-      {!showCapture && !showRecall && (
-        <Dashboard notes={allNotes} monitoredApps={runningApps} />
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          trackedApps={trackedApps}
+          onTrackedAppsChange={handleTrackedAppsChange}
+          allAvailableApps={allAvailableApps}
+        />
       )}
+
+      <Sidebar
+        runningApps={runningApps}
+        selectedApp={selectedApp}
+        onSelectApp={setSelectedApp}
+        onSettingsClick={() => setShowSettings(true)}
+      />
+
+      <Dashboard
+        notes={allNotes}
+        monitoredApps={runningApps}
+        selectedApp={selectedApp}
+      />
     </div>
   );
 }
