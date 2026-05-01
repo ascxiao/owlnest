@@ -1,4 +1,5 @@
 #[tauri::command]
+
 pub fn save_capture(
     app_name: String,
     where_left_off: String,
@@ -162,7 +163,59 @@ pub struct FullCaptureNote {
     pub captured_at: String,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct TrackedApp {
+    pub name: String,
+    pub path: String,
+}
+
 #[tauri::command]
-pub fn get_all_apps() -> Result<Vec<crate::icon::AppInfo>, String> {
-    Ok(crate::icon::get_all_installed_apps())
+pub fn save_tracked_apps(tracked_apps: Vec<TrackedApp>) -> Result<(), String> {
+    let conn = crate::db::get_db().map_err(|e| e.to_string())?;
+
+    // Serialize the tracked apps list as JSON
+    let json = serde_json::to_string(&tracked_apps)
+        .map_err(|e| format!("Failed to serialize tracked apps: {}", e))?;
+
+    // Delete existing setting
+    conn.execute("DELETE FROM app_settings WHERE key = 'tracked_apps'")
+        .map_err(|e| e.to_string())?;
+
+    // Insert new setting
+    let mut stmt = conn
+        .prepare("INSERT INTO app_settings (key, value) VALUES (?, ?)")
+        .map_err(|e| e.to_string())?;
+
+    stmt.bind((1, "tracked_apps"))
+        .map_err(|e| e.to_string())?;
+    stmt.bind((2, &json[..]))
+        .map_err(|e| e.to_string())?;
+
+    stmt.next().map_err(|e| e.to_string())?;
+
+    println!("[save_tracked_apps] Successfully saved {} tracked apps", tracked_apps.len());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_tracked_apps() -> Result<Vec<TrackedApp>, String> {
+    let conn = crate::db::get_db().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare("SELECT value FROM app_settings WHERE key = 'tracked_apps'")
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(sqlite::State::Row) = stmt.next() {
+        let json = stmt.read::<String, usize>(0)
+            .map_err(|e| e.to_string())?;
+
+        let apps: Vec<TrackedApp> = serde_json::from_str(&json)
+            .map_err(|e| format!("Failed to deserialize tracked apps: {}", e))?;
+
+        println!("[load_tracked_apps] Loaded {} tracked apps", apps.len());
+        Ok(apps)
+    } else {
+        println!("[load_tracked_apps] No tracked apps found in database");
+        Ok(Vec::new())
+    }
 }

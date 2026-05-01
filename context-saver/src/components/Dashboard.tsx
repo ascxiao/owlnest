@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatTimestamp } from "../utils/formatTime";
 import {
   getAppDisplayName,
@@ -18,17 +19,16 @@ interface CaptureNote {
 
 interface Props {
   notes: CaptureNote[];
-  monitoredApps: AppInfo[];
+  trackedApps: AppInfo[];
   selectedApp: string | null;
 }
 
-export default function Dashboard({
-  notes,
-  monitoredApps,
-  selectedApp,
-}: Props) {
+export default function Dashboard({ notes, trackedApps, selectedApp }: Props) {
+  const [showAllTrackedApps, setShowAllTrackedApps] = useState(false);
+  const previewCount = Math.min(trackedApps.length, 5);
+
   // Create a map of app names to AppInfo for quick lookup
-  const appInfoMap = new Map(monitoredApps.map((app) => [app.name, app]));
+  const appInfoMap = new Map(trackedApps.map((app) => [app.name, app]));
 
   // Group notes by app
   const notesByApp = notes.reduce(
@@ -65,38 +65,59 @@ export default function Dashboard({
       </div>
 
       <div className="dashboard-grid">
-        {/* Running Apps Card */}
+        {/* Tracked Apps Card */}
         <div className="dashboard-card running-apps-card">
           <div className="card-header">
-            <h2>Running Applications</h2>
-            <span className="card-badge">{monitoredApps.length}</span>
+            <h2>Tracked Applications</h2>
+            <span className="card-badge">{trackedApps.length}</span>
+          </div>
+          <div className="card-subheader">
+            Showing {previewCount} of {trackedApps.length} tracked apps by
+            default
           </div>
           <div className="card-content">
-            {monitoredApps.length === 0 ? (
+            {trackedApps.length === 0 ? (
               <div className="empty-state">
-                <p>No applications running</p>
+                <p>No tracked applications selected</p>
               </div>
             ) : (
-              <div className="apps-quick-list">
-                {monitoredApps.map((app) => {
-                  const noteCount = notesByApp[app.name]?.length || 0;
-                  return (
-                    <div key={app.name} className="quick-app-item">
-                      <div className="quick-app-icon">
-                        {getAppIconElement(app)}
-                      </div>
-                      <div className="quick-app-info">
-                        <div className="quick-app-name">
-                          {getAppDisplayName(app.name)}
+              <>
+                <div className="apps-quick-list">
+                  {(showAllTrackedApps
+                    ? trackedApps
+                    : trackedApps.slice(0, 5)
+                  ).map((app) => {
+                    const noteCount = notesByApp[app.name]?.length || 0;
+                    return (
+                      <div key={app.name} className="quick-app-item">
+                        <div className="quick-app-icon">
+                          {getAppIconElement(app)}
                         </div>
-                        <div className="quick-app-notes">
-                          {noteCount} note{noteCount !== 1 ? "s" : ""}
+                        <div className="quick-app-info">
+                          <div className="quick-app-name">
+                            {getAppDisplayName(app.name)}
+                          </div>
+                          <div className="quick-app-notes">
+                            {noteCount} note{noteCount !== 1 ? "s" : ""}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+
+                {trackedApps.length > 5 && (
+                  <button
+                    type="button"
+                    className="dashboard-see-more-btn"
+                    onClick={() => setShowAllTrackedApps((current) => !current)}
+                  >
+                    {showAllTrackedApps
+                      ? "Show Less"
+                      : `See More (${trackedApps.length - 5})`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

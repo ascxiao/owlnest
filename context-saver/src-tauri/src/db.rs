@@ -23,7 +23,7 @@ pub fn init_db(conn: &Connection) -> Result<(), sqlite::Error> {
     eprintln!("[db::init_db] Initializing database");
     println!("[db] Initializing database");
     
-    eprintln!("[db::init_db] Creating/verifying table...");
+    eprintln!("[db::init_db] Creating/verifying capture_notes table...");
     let create_result = conn.execute(r#"
         CREATE TABLE IF NOT EXISTS capture_notes (
             id TEXT PRIMARY KEY,
@@ -36,12 +36,33 @@ pub fn init_db(conn: &Connection) -> Result<(), sqlite::Error> {
     
     match create_result {
         Ok(_) => {
-            eprintln!("[db::init_db] Table created/verified successfully");
-            println!("[db] Table created/verified successfully");
+            eprintln!("[db::init_db] capture_notes table created/verified successfully");
+            println!("[db] capture_notes table created/verified successfully");
         }
         Err(e) => {
-            eprintln!("[db::init_db] Failed to create table: {:?}", e);
-            println!("[db] Failed to create table: {:?}", e);
+            eprintln!("[db::init_db] Failed to create capture_notes table: {:?}", e);
+            println!("[db] Failed to create capture_notes table: {:?}", e);
+            return Err(e);
+        }
+    }
+
+    eprintln!("[db::init_db] Creating/verifying app_settings table...");
+    let settings_result = conn.execute(r#"
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    "#);
+    
+    match settings_result {
+        Ok(_) => {
+            eprintln!("[db::init_db] app_settings table created/verified successfully");
+            println!("[db] app_settings table created/verified successfully");
+        }
+        Err(e) => {
+            eprintln!("[db::init_db] Failed to create app_settings table: {:?}", e);
+            println!("[db] Failed to create app_settings table: {:?}", e);
             return Err(e);
         }
     }

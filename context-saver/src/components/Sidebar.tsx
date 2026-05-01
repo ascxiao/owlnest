@@ -1,4 +1,3 @@
-import React from "react";
 import {
   getAppDisplayName,
   getAppIconElement,
@@ -26,11 +25,11 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-content">
-        <h3 className="sidebar-section-title">Running Apps</h3>
+        <h3 className="sidebar-section-title">Running Tracked Apps</h3>
 
         {runningApps.length === 0 ? (
           <div className="sidebar-empty">
-            <p>No apps running</p>
+            <p>No tracked apps running</p>
           </div>
         ) : (
           <div className="sidebar-apps-list">

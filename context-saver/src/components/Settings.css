@@ -121,6 +121,138 @@
   line-height: 1.5;
 }
 
+.settings-search-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+.settings-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.settings-search:focus-within {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+  transform: translateY(-1px);
+}
+
+.settings-search-icon {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.settings-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #111827;
+  font: inherit;
+  font-size: 14px;
+}
+
+.settings-search input::placeholder {
+  color: #9ca3af;
+}
+
+.settings-toggle-all-btn {
+  min-width: 154px;
+  padding: 12px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.settings-toggle-all-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #94a3b8;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.settings-toggle-all-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(15, 118, 110, 0.16),
+    0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.settings-toggle-all-btn.is-active {
+  border-color: #0f766e;
+  background: linear-gradient(180deg, #0f766e 0%, #115e59 100%);
+  color: #ffffff;
+}
+
+.settings-toggle-all-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.settings-toggle-all-btn-label {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.settings-toggle-all-btn-meta {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
+.settings-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.settings-selection-summary {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.settings-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .apps-list {
   display: flex;
   flex-direction: column;
