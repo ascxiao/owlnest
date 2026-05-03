@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import CaptureModal from "./components/CaptureModal";
 import RecallModal from "./components/RecallModal";
 import Dashboard from "./components/Dashboard";
@@ -19,164 +18,13 @@ interface CaptureNote {
   recalled_count: number;
 }
 
-// Get window type from label
-const getWindowLabel = () => {
-  try {
-    return getCurrentWebviewWindow().label;
-  } catch (e) {
-    return null;
-  }
-};
-
-// Standalone Capture Modal Window
-function CaptureWindow() {
-  const [appName, setAppName] = useState<string>("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log("[CaptureWindow] Fetching pending capture data...");
-        const data = await invoke<{ appName: string }>(
-          "get_pending_capture_data",
-        );
-        console.log("[CaptureWindow] Got data:", data);
-        if (data?.appName) {
-          setAppName(data.appName);
-        } else {
-          setError("No app name available");
-        }
-      } catch (err) {
-        console.error("[CaptureWindow] Error loading data:", err);
-        setError(String(err));
-      }
-    };
-    loadData();
-  }, []);
-
-  const handleSave = async (whereLeftOff: string, nextStep: string) => {
-    setIsSaving(true);
-    try {
-      console.log("[CaptureWindow] Saving capture for app:", appName);
-      await invoke("save_capture", {
-        appName,
-        whereLeftOff,
-        nextStep,
-      });
-      await getCurrentWebviewWindow().close();
-    } catch (error) {
-      console.error("[CaptureWindow] Error saving:", error);
-      setError(String(error));
-      setIsSaving(false);
-    }
-  };
-
-  const handleSkip = async () => {
-    console.log("[CaptureWindow] Skipping capture, closing");
-    await getCurrentWebviewWindow().close();
-  };
-
-  if (error) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          color: "red",
-          textAlign: "center",
-        }}
-      >
-        <div>Error: {error}</div>
-      </div>
-    );
-  }
-
-  // Always render the modal, even while loading - this shows the UI
-  return (
-    <div style={{ width: "100%", height: "100vh", backgroundColor: "#f5f5f5" }}>
-      <CaptureModal
-        app_name={appName || "Loading..."}
-        onSave={handleSave}
-        onSkip={handleSkip}
-      />
-    </div>
-  );
-}
-
-// Standalone Recall Modal Window
-function RecallWindow() {
-  const [recallData, setRecallData] = useState<any>(null);
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log("[RecallWindow] Fetching pending recall data...");
-        const data = await invoke<any>("get_pending_recall_data");
-        console.log("[RecallWindow] Got data:", data);
-        if (data) {
-          setRecallData(data);
-        } else {
-          setError("No recall data available");
-        }
-      } catch (err) {
-        console.error("[RecallWindow] Error loading data:", err);
-        setError(String(err));
-      }
-    };
-    loadData();
-  }, []);
-
-  const handleClose = async () => {
-    console.log("[RecallWindow] Closing");
-    await getCurrentWebviewWindow().close();
-  };
-
-  if (error) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          color: "red",
-          textAlign: "center",
-        }}
-      >
-        <div>Error: {error}</div>
-      </div>
-    );
-  }
-
-  // Always render the modal, even while loading - this shows the UI
-  return (
-    <div style={{ width: "100%", height: "100vh", backgroundColor: "#f5f5f5" }}>
-      <RecallModal
-        data={
-          recallData || {
-            app_name: "Loading...",
-            where_left_off: "",
-            next_step: "",
-          }
-        }
-        onClose={handleClose}
-      />
-    </div>
-  );
-}
-
 export default function App() {
+  const [showCapture, setShowCapture] = useState(false);
+  const [showRecall, setShowRecall] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [currentApp, setCurrentApp] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
+  const [recallData, setRecallData] = useState<any>(null);
   const [allNotes, setAllNotes] = useState<CaptureNote[]>([]);
   const [runningApps, setRunningApps] = useState<AppInfo[]>([]);
   const [trackedApps, setTrackedApps] = useState<AppInfo[]>([]);
@@ -408,7 +256,11 @@ export default function App() {
             const procName = event.payload.app;
             console.log("[App] App closed event received:", procName);
 
-            // Map the process to a tracked app in background using refs
+            // Open capture modal immediately with the raw process name
+            setCurrentApp(procName);
+            setShowCapture(true);
+
+            // Map the process to a tracked app in background using refs, then refresh running apps
             (async () => {
               try {
                 const normalize = (s: string) => (s || "").toLowerCase();
@@ -421,6 +273,7 @@ export default function App() {
                   const path = normalize(a.path || "");
                   const name = normalize(a.name || "");
                   if (!path && !name) return false;
+                  // exact exe/basename match
                   if (
                     path.endsWith(pLower) ||
                     path.endsWith(pLower + ".exe") ||
@@ -434,24 +287,19 @@ export default function App() {
                 let matched = trackedList.find(matchesProc);
                 if (!matched) matched = availableList.find(matchesProc);
 
-                const appIdentifier = matched
-                  ? matched.name || matched.path
-                  : procName;
-                console.log("[App] Mapped closed process to:", appIdentifier);
-
-                // Create capture window with app name in URL
-                console.log(
-                  "[App] Creating capture window for:",
-                  appIdentifier,
-                );
-                await invoke("create_capture_window", {
-                  appName: appIdentifier,
-                });
+                if (matched) {
+                  const current = matched.name || matched.path;
+                  console.log(
+                    "[App] Mapped closed process to tracked app:",
+                    current,
+                  );
+                  setCurrentApp(current);
+                }
 
                 // Refresh running apps so UI reflects closed app removal
                 await loadRunningApps();
               } catch (err) {
-                console.error("[App] Error handling app close:", err);
+                console.error("[App] Error mapping closed process:", err);
                 // still refresh running apps
                 await loadRunningApps();
               }
@@ -506,9 +354,8 @@ export default function App() {
                 });
                 if (data) {
                   console.log("[App] Got recall data for app:", appIdentifier);
-                  // Create recall window with data in URL
-                  console.log("[App] Creating recall window");
-                  await invoke("create_recall_window", { data });
+                  setRecallData(data);
+                  setShowRecall(true);
                 }
               } catch (err) {
                 console.error("[App] Error fetching recall data:", err);
@@ -542,27 +389,60 @@ export default function App() {
     };
   }, []);
 
+  const handleSaveCapture = async (whereLeftOff: string, nextStep: string) => {
+    console.log("[App] handleSaveCapture called");
+    console.log("[App] currentApp:", currentApp);
+    console.log("[App] whereLeftOff:", whereLeftOff);
+    console.log("[App] nextStep:", nextStep);
+
+    if (!currentApp) {
+      console.error("[App] No current app set!");
+      throw new Error("No app selected");
+    }
+
+    try {
+      console.log("[App] Calling invoke save_capture...");
+      console.log("[App] Parameters object:", {
+        appName: currentApp,
+        whereLeftOff,
+        nextStep,
+      });
+      const result = await invoke("save_capture", {
+        appName: currentApp,
+        whereLeftOff,
+        nextStep,
+      });
+      console.log("[App] invoke returned:", result);
+      console.log("[App] Setting showCapture to false");
+      setShowCapture(false);
+      console.log("[App] Calling loadAllNotes");
+      loadAllNotes();
+      console.log("[App] Save completed successfully");
+    } catch (error) {
+      console.error("[App] Error in handleSaveCapture:", error);
+      console.error("[App] Error type:", typeof error);
+      console.error("[App] Error message:", (error as Error).message);
+      throw error;
+    }
+  };
+
   const handleTrackedAppsChange = (apps: AppInfo[]) => {
     setTrackedApps(dedupeByPath(apps));
     // Settings component handles saving to database via invoke("save_tracked_apps", ...)
   };
 
-  // Check window label for modal windows
-  const windowLabel = getWindowLabel();
-  console.log("[App] Window label:", windowLabel);
-
-  if (windowLabel?.startsWith("capture")) {
-    console.log("[App] Rendering CaptureWindow");
-    return <CaptureWindow />;
-  }
-  if (windowLabel?.startsWith("recall")) {
-    console.log("[App] Rendering RecallWindow");
-    return <RecallWindow />;
-  }
-
-  console.log("[App] Rendering main dashboard");
   return (
     <div className="app-layout">
+      {showCapture && currentApp && (
+        <CaptureModal
+          app_name={currentApp}
+          onSave={handleSaveCapture}
+          onSkip={() => setShowCapture(false)}
+        />
+      )}
+      {showRecall && recallData && (
+        <RecallModal data={recallData} onClose={() => setShowRecall(false)} />
+      )}
       {showSettings && (
         <Settings
           onClose={() => setShowSettings(false)}

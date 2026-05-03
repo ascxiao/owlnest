@@ -11,10 +11,13 @@ mod icon;
 use base64::{engine::general_purpose, Engine as _};
 use process_monitor::{ProcessMonitor, ProcessEvent};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::Emitter;
 use systemicons::get_icon;
+use once_cell::sync::Lazy;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AppInfo {
@@ -24,14 +27,106 @@ pub struct AppInfo {
 }
 
 // Temporary storage for modal data
-lazy_static::lazy_static! {
-    static ref PENDING_CAPTURE_DATA: Mutex<Option<PendingCapture>> = Mutex::new(None);
-    static ref PENDING_RECALL_DATA: Mutex<Option<serde_json::Value>> = Mutex::new(None);
-}
+static PENDING_CAPTURE_DATA: Lazy<Mutex<Option<PendingCapture>>> = Lazy::new(|| Mutex::new(None));
+static PENDING_RECALL_DATA: Lazy<Mutex<Option<Value>>> = Lazy::new(|| Mutex::new(None));
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct PendingCapture {
     appName: String,
+}
+
+#[tauri::command]
+fn create_capture_window(app_handle: tauri::AppHandle, app_name: String) -> Result<(), String> {
+    // Store data for the window to retrieve
+    let window_id = format!("capture_{}", Uuid::new_v4());
+    {
+        let mut data = PENDING_CAPTURE_DATA.lock().unwrap();
+        *data = Some(PendingCapture { appName: app_name.clone() });
+    }
+
+    println!("[Rust] Creating capture window with id: {} for app: {}", window_id, app_name);
+    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("capture.html".into()))
+        .title("Save Note")
+        .inner_size(600.0, 400.0)
+        .always_on_top(true)
+        .transparent(false)
+        .build()
+        .map_err(|e| format!("Failed to create capture window: {}", e))?;
+    println!("[Rust] Capture window created successfully");
+
+    // Ensure window is topmost and focused so it appears above other apps
+    let _ = window.show();
+    let _ = window.set_always_on_top(true);
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let _ = window.set_focus();
+
+    // Center the window on screen
+    if let Ok(monitor) = window.primary_monitor() {
+        if let Some(m) = monitor {
+            let window_width = 600;
+            let window_height = 400;
+            let x = (m.size().width as i32 - window_width) / 2 + m.position().x;
+            let y = (m.size().height as i32 - window_height) / 2 + m.position().y;
+            let _ = window.set_position(tauri::PhysicalPosition { x, y });
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn create_recall_window(app_handle: tauri::AppHandle, data: Value) -> Result<(), String> {
+    // Store data for the window to retrieve
+    let window_id = format!("recall_{}", Uuid::new_v4());
+    {
+        let mut recall_data = PENDING_RECALL_DATA.lock().unwrap();
+        *recall_data = Some(data);
+    }
+
+    println!("[Rust] Creating recall window with id: {}", window_id);
+    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("recall.html".into()))
+        .title("Note")
+        .inner_size(700.0, 500.0)
+        .always_on_top(true)
+        .transparent(false)
+        .build()
+        .map_err(|e| format!("Failed to create recall window: {}", e))?;
+    println!("[Rust] Recall window created successfully");
+
+    // Ensure window is topmost and focused so it appears above other apps
+    let _ = window.show();
+    let _ = window.set_always_on_top(true);
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let _ = window.set_focus();
+
+    // Center the window on screen
+    if let Ok(monitor) = window.primary_monitor() {
+        if let Some(m) = monitor {
+            let window_width = 700;
+            let window_height = 500;
+            let x = (m.size().width as i32 - window_width) / 2 + m.position().x;
+            let y = (m.size().height as i32 - window_height) / 2 + m.position().y;
+            let _ = window.set_position(tauri::PhysicalPosition { x, y });
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_pending_capture_data() -> Option<PendingCapture> {
+    let mut data = PENDING_CAPTURE_DATA.lock().unwrap();
+    let result = data.clone();
+    *data = None; // Clear after retrieval
+    result
+}
+
+#[tauri::command]
+fn get_pending_recall_data() -> Option<Value> {
+    let mut data = PENDING_RECALL_DATA.lock().unwrap();
+    let result = data.clone();
+    *data = None; // Clear after retrieval
+    result
 }
 
 #[tauri::command]
@@ -91,82 +186,6 @@ fn tracked_apps_from_db() -> Vec<String> {
             Vec::new()
         }
     }
-}
-
-#[tauri::command]
-fn create_capture_window(app_handle: tauri::AppHandle, app_name: String) -> Result<(), String> {
-    // Store data for the window to retrieve
-    let window_id = format!("capture_{}", uuid::Uuid::new_v4());
-    {
-        let mut data = PENDING_CAPTURE_DATA.lock().unwrap();
-        *data = Some(PendingCapture { appName: app_name.clone() });
-    }
-    
-    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("index.html".into()))
-        .title("Save Note")
-        .inner_size(600.0, 400.0)
-        .always_on_top(true)
-        .build()
-        .map_err(|e| format!("Failed to create capture window: {}", e))?;
-    
-    // Center the window on screen
-    if let Ok(monitor) = window.primary_monitor() {
-        if let Some(m) = monitor {
-            let window_width = 600;
-            let window_height = 400;
-            let x = (m.size().width as i32 - window_width) / 2 + m.position().x;
-            let y = (m.size().height as i32 - window_height) / 2 + m.position().y;
-            let _ = window.set_position(tauri::PhysicalPosition { x, y });
-        }
-    }
-    
-    Ok(())
-}
-
-#[tauri::command]
-fn create_recall_window(app_handle: tauri::AppHandle, data: serde_json::Value) -> Result<(), String> {
-    // Store data for the window to retrieve
-    let window_id = format!("recall_{}", uuid::Uuid::new_v4());
-    {
-        let mut recall_data = PENDING_RECALL_DATA.lock().unwrap();
-        *recall_data = Some(data);
-    }
-    
-    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("index.html".into()))
-        .title("Note")
-        .inner_size(700.0, 500.0)
-        .always_on_top(true)
-        .build()
-        .map_err(|e| format!("Failed to create recall window: {}", e))?;
-    
-    // Center the window on screen
-    if let Ok(monitor) = window.primary_monitor() {
-        if let Some(m) = monitor {
-            let window_width = 700;
-            let window_height = 500;
-            let x = (m.size().width as i32 - window_width) / 2 + m.position().x;
-            let y = (m.size().height as i32 - window_height) / 2 + m.position().y;
-            let _ = window.set_position(tauri::PhysicalPosition { x, y });
-        }
-    }
-    
-    Ok(())
-}
-
-#[tauri::command]
-fn get_pending_capture_data() -> Option<PendingCapture> {
-    let mut data = PENDING_CAPTURE_DATA.lock().unwrap();
-    let result = data.clone();
-    *data = None; // Clear after retrieval
-    result
-}
-
-#[tauri::command]
-fn get_pending_recall_data() -> Option<serde_json::Value> {
-    let mut data = PENDING_RECALL_DATA.lock().unwrap();
-    let result = data.clone();
-    *data = None; // Clear after retrieval
-    result
 }
 
 fn main() {

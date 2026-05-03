@@ -30,4 +30,5 @@ windows = { version = "0.58", features = ["Win32_UI_Shell", "Win32_System_Com", 
 systemicons = "0.9.0" # Grabs the native Windows/macOS icons
 base64 = "0.22.1"
 winreg = "0.10"
+once_cell = "1.18"
 
