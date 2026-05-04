@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import CaptureModal from "./components/CaptureModal";
-import RecallModal from "./components/RecallModal";
 import Dashboard from "./components/Dashboard";
 import Sidebar from "./components/Sidebar";
 import Settings from "./components/Settings.tsx";
@@ -19,12 +17,9 @@ interface CaptureNote {
 }
 
 export default function App() {
-  const [showCapture, setShowCapture] = useState(false);
-  const [showRecall, setShowRecall] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [currentApp, setCurrentApp] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
-  const [recallData, setRecallData] = useState<any>(null);
   const [allNotes, setAllNotes] = useState<CaptureNote[]>([]);
   const [runningApps, setRunningApps] = useState<AppInfo[]>([]);
   const [trackedApps, setTrackedApps] = useState<AppInfo[]>([]);
@@ -256,9 +251,8 @@ export default function App() {
             const procName = event.payload.app;
             console.log("[App] App closed event received:", procName);
 
-            // Open capture modal immediately with the raw process name
+            // Open capture window instead of modal
             setCurrentApp(procName);
-            setShowCapture(true);
 
             // Map the process to a tracked app in background using refs, then refresh running apps
             (async () => {
@@ -294,6 +288,9 @@ export default function App() {
                     current,
                   );
                   setCurrentApp(current);
+                  invoke("create_capture_window", { appName: current, x: null, y: null }).catch(console.error);
+                } else {
+                  invoke("create_capture_window", { appName: procName, x: null, y: null }).catch(console.error);
                 }
 
                 // Refresh running apps so UI reflects closed app removal
@@ -310,11 +307,13 @@ export default function App() {
 
         // Listen for app launched events
         console.log("[App::setupListeners] Setting up app-launched listener");
-        const unlistenLaunched = await listen<{ app: string }>(
+        const unlistenLaunched = await listen<{ app: string; x?: number | null; y?: number | null }>(
           "app-launched",
           (event) => {
             const app = event.payload.app;
-            console.log("[App] App launched event received:", app);
+            const targetX = event.payload.x;
+            const targetY = event.payload.y;
+            console.log("[App] App launched event received:", app, "pos:", targetX, targetY);
             // Refresh running apps when one launches
             loadRunningApps();
 
@@ -354,8 +353,11 @@ export default function App() {
                 });
                 if (data) {
                   console.log("[App] Got recall data for app:", appIdentifier);
-                  setRecallData(data);
-                  setShowRecall(true);
+                  invoke("create_recall_window", { 
+                    data, 
+                    x: targetX != null ? targetX : null, 
+                    y: targetY != null ? targetY : null 
+                  }).catch(console.error);
                 }
               } catch (err) {
                 console.error("[App] Error fetching recall data:", err);
@@ -365,9 +367,14 @@ export default function App() {
         );
         console.log("[App::setupListeners] app-launched listener registered");
 
+        const unlistenSaved = await listen("capture-saved", () => {
+          loadAllNotes();
+        });
+
         return () => {
           unlistenClosed();
           unlistenLaunched();
+          unlistenSaved();
         };
       } catch (error) {
         console.error(
@@ -389,43 +396,6 @@ export default function App() {
     };
   }, []);
 
-  const handleSaveCapture = async (whereLeftOff: string, nextStep: string) => {
-    console.log("[App] handleSaveCapture called");
-    console.log("[App] currentApp:", currentApp);
-    console.log("[App] whereLeftOff:", whereLeftOff);
-    console.log("[App] nextStep:", nextStep);
-
-    if (!currentApp) {
-      console.error("[App] No current app set!");
-      throw new Error("No app selected");
-    }
-
-    try {
-      console.log("[App] Calling invoke save_capture...");
-      console.log("[App] Parameters object:", {
-        appName: currentApp,
-        whereLeftOff,
-        nextStep,
-      });
-      const result = await invoke("save_capture", {
-        appName: currentApp,
-        whereLeftOff,
-        nextStep,
-      });
-      console.log("[App] invoke returned:", result);
-      console.log("[App] Setting showCapture to false");
-      setShowCapture(false);
-      console.log("[App] Calling loadAllNotes");
-      loadAllNotes();
-      console.log("[App] Save completed successfully");
-    } catch (error) {
-      console.error("[App] Error in handleSaveCapture:", error);
-      console.error("[App] Error type:", typeof error);
-      console.error("[App] Error message:", (error as Error).message);
-      throw error;
-    }
-  };
-
   const handleTrackedAppsChange = (apps: AppInfo[]) => {
     setTrackedApps(dedupeByPath(apps));
     // Settings component handles saving to database via invoke("save_tracked_apps", ...)
@@ -433,16 +403,6 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      {showCapture && currentApp && (
-        <CaptureModal
-          app_name={currentApp}
-          onSave={handleSaveCapture}
-          onSkip={() => setShowCapture(false)}
-        />
-      )}
-      {showRecall && recallData && (
-        <RecallModal data={recallData} onClose={() => setShowRecall(false)} />
-      )}
       {showSettings && (
         <Settings
           onClose={() => setShowSettings(false)}
@@ -451,7 +411,6 @@ export default function App() {
           allAvailableApps={allAvailableApps}
         />
       )}
-
       <Sidebar
         runningApps={runningTrackedApps}
         selectedApp={selectedApp}
@@ -463,6 +422,7 @@ export default function App() {
         notes={allNotes}
         trackedApps={trackedApps}
         selectedApp={selectedApp}
+        onSelectApp={setSelectedApp}
       />
     </div>
   );

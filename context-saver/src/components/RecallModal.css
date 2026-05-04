@@ -1,19 +1,10 @@
 .recall-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-.recall-overlay.fade-out {
-  animation: fadeOut 0.5s ease-in-out forwards;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
 }
 
 @keyframes fadeIn {
@@ -25,33 +16,13 @@
   }
 }
 
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
 .recall-content {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  max-width: 500px;
-  width: 90%;
-  animation: slideUp 0.4s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
 .recall-header {
@@ -82,9 +53,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  transition:
-    background-color 0.2s,
-    color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .close-btn:hover {
@@ -94,6 +63,8 @@
 
 .recall-body {
   padding: 24px;
+  flex-grow: 1;
+  overflow-y: auto;
 }
 
 .recall-section {
@@ -161,4 +132,21 @@
 
 .btn-primary:active {
   background: #1d4ed8;
+}
+
+@media (prefers-color-scheme: dark) {
+  .recall-overlay, .recall-content {
+    background-color: #1a1a1a;
+  }
+  .recall-header { border-bottom-color: #404040; }
+  .recall-footer { border-top-color: #404040; }
+  .recall-header h2 { color: #f3f4f6; }
+  .close-btn { color: #9ca3af; }
+  .close-btn:hover { background-color: #374151; color: #f3f4f6; }
+  .recall-section h3 { color: #9ca3af; }
+  .recall-text {
+    background: #2d2d2d;
+    color: #f3f4f6;
+    border-left-color: #3b82f6;
+  }
 }

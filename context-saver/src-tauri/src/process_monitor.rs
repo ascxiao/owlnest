@@ -48,7 +48,7 @@ impl ProcessMonitor {
             if let Some(tracked) = self.is_tracked(&process_name) {
                 let was_running = last_seen.get(&tracked).copied().unwrap_or(false);
                 if !was_running {
-                    events.push(ProcessEvent::Launched(tracked.clone()));
+                    events.push(ProcessEvent::Launched(tracked.clone(), _pid.as_u32()));
                 }
                 last_seen.insert(tracked.clone(), true);
                 missing_counts.insert(tracked, 0);
@@ -88,7 +88,7 @@ impl ProcessMonitor {
 
 #[derive(Debug)]
 pub enum ProcessEvent {
-    Launched(String),
+    Launched(String, u32),
     Closed(String),
 }
 

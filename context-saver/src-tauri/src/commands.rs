@@ -91,7 +91,7 @@ pub fn save_capture(
 pub fn get_latest_capture(app_name: String) -> Result<Option<CaptureNote>, String> {
     let conn = crate::db::get_db().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT where_left_off, next_step, captured_at FROM capture_notes 
+        .prepare("SELECT id, where_left_off, next_step, captured_at, recalled_count FROM capture_notes 
                   WHERE app_name = ? ORDER BY captured_at DESC LIMIT 1")
         .map_err(|e| e.to_string())?;
     
@@ -99,13 +99,26 @@ pub fn get_latest_capture(app_name: String) -> Result<Option<CaptureNote>, Strin
         .map_err(|e| e.to_string())?;
     
     if let Ok(sqlite::State::Row) = stmt.next() {
+        let id = stmt.read::<String, usize>(0).map_err(|e| e.to_string())?;
+        let where_left_off = stmt.read::<String, usize>(1).map_err(|e| e.to_string())?;
+        let next_step = stmt.read::<String, usize>(2).map_err(|e| e.to_string())?;
+        let mut captured_at = stmt.read::<String, usize>(3).map_err(|e| e.to_string())?;
+        if !captured_at.ends_with('Z') {
+            captured_at = captured_at.replace(" ", "T") + "Z";
+        }
+        let recalled_count = stmt.read::<i64, usize>(4).unwrap_or(0);
+        
+        // Increment recalled_count
+        if let Ok(mut update_stmt) = conn.prepare("UPDATE capture_notes SET recalled_count = recalled_count + 1 WHERE id = ?") {
+            let _ = update_stmt.bind((1, &id[..]));
+            let _ = update_stmt.next();
+        }
+
         Ok(Some(CaptureNote {
-            where_left_off: stmt.read::<String, usize>(0)
-                .map_err(|e| e.to_string())?,
-            next_step: stmt.read::<String, usize>(1)
-                .map_err(|e| e.to_string())?,
-            captured_at: stmt.read::<String, usize>(2)
-                .map_err(|e| e.to_string())?,
+            where_left_off,
+            next_step,
+            captured_at,
+            recalled_count: recalled_count + 1,
         }))
     } else {
         Ok(None)
@@ -117,13 +130,14 @@ pub struct CaptureNote {
     pub where_left_off: String,
     pub next_step: String,
     pub captured_at: String,
+    pub recalled_count: i64,
 }
 
 #[tauri::command]
 pub fn get_all_captures() -> Result<Vec<FullCaptureNote>, String> {
     let conn = crate::db::get_db().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, app_name, where_left_off, next_step, captured_at FROM capture_notes ORDER BY captured_at DESC")
+        .prepare("SELECT id, app_name, where_left_off, next_step, captured_at, recalled_count FROM capture_notes ORDER BY captured_at DESC")
         .map_err(|e| e.to_string())?;
     
     let mut notes = Vec::new();
@@ -133,7 +147,14 @@ pub fn get_all_captures() -> Result<Vec<FullCaptureNote>, String> {
             app_name: stmt.read::<String, usize>(1).map_err(|e| e.to_string())?,
             where_left_off: stmt.read::<String, usize>(2).map_err(|e| e.to_string())?,
             next_step: stmt.read::<String, usize>(3).map_err(|e| e.to_string())?,
-            captured_at: stmt.read::<String, usize>(4).map_err(|e| e.to_string())?,
+            captured_at: {
+                let mut s = stmt.read::<String, usize>(4).map_err(|e| e.to_string())?;
+                if !s.ends_with('Z') {
+                    s = s.replace(" ", "T") + "Z";
+                }
+                s
+            },
+            recalled_count: stmt.read::<i64, usize>(5).unwrap_or(0),
         });
     }
     
@@ -161,6 +182,7 @@ pub struct FullCaptureNote {
     pub where_left_off: String,
     pub next_step: String,
     pub captured_at: String,
+    pub recalled_count: i64,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

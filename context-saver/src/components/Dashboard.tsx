@@ -21,9 +21,10 @@ interface Props {
   notes: CaptureNote[];
   trackedApps: AppInfo[];
   selectedApp: string | null;
+  onSelectApp: (app: string) => void;
 }
 
-export default function Dashboard({ notes, trackedApps, selectedApp }: Props) {
+export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp }: Props) {
   const [showAllTrackedApps, setShowAllTrackedApps] = useState(false);
   const previewCount = Math.min(trackedApps.length, 5);
 
@@ -89,7 +90,11 @@ export default function Dashboard({ notes, trackedApps, selectedApp }: Props) {
                   ).map((app) => {
                     const noteCount = notesByApp[app.name]?.length || 0;
                     return (
-                      <div key={app.name} className="quick-app-item">
+                      <div
+                        key={app.name}
+                        className={`quick-app-item clickable ${selectedApp === app.name ? "active" : ""}`}
+                        onClick={() => onSelectApp(app.name)}
+                      >
                         <div className="quick-app-icon">
                           {getAppIconElement(app)}
                         </div>

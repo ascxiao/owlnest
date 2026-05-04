@@ -18,6 +18,29 @@ use tauri::Emitter;
 use systemicons::get_icon;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
+use windows::Win32::Foundation::{HWND, LPARAM, RECT};
+use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, GetWindowRect, IsWindowVisible};
+
+struct WindowSearch {
+    target_pids: Vec<u32>,
+    found_hwnd: Option<HWND>,
+}
+
+unsafe extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> windows::Win32::Foundation::BOOL {
+    let search = &mut *(lparam.0 as *mut WindowSearch);
+    let mut pid: u32 = 0;
+    GetWindowThreadProcessId(hwnd, Some(&mut pid));
+    
+    if search.target_pids.contains(&pid) && IsWindowVisible(hwnd).as_bool() {
+        let mut rect = RECT::default();
+        // Also check if the window has a meaningful size (not minimized or hidden out of bounds)
+        if GetWindowRect(hwnd, &mut rect).is_ok() && rect.right - rect.left > 0 && rect.bottom - rect.top > 0 && rect.left > -10000 {
+            search.found_hwnd = Some(hwnd);
+            return windows::Win32::Foundation::BOOL(0);
+        }
+    }
+    windows::Win32::Foundation::BOOL(1)
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AppInfo {
@@ -36,7 +59,7 @@ struct PendingCapture {
 }
 
 #[tauri::command]
-fn create_capture_window(app_handle: tauri::AppHandle, app_name: String) -> Result<(), String> {
+async fn create_capture_window(app_handle: tauri::AppHandle, app_name: String, x: Option<i32>, y: Option<i32>) -> Result<(), String> {
     // Store data for the window to retrieve
     let window_id = format!("capture_{}", Uuid::new_v4());
     {
@@ -45,8 +68,9 @@ fn create_capture_window(app_handle: tauri::AppHandle, app_name: String) -> Resu
     }
 
     println!("[Rust] Creating capture window with id: {} for app: {}", window_id, app_name);
-    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("capture.html".into()))
+    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("index.html".into()))
         .title("Save Note")
+        .initialization_script("window.__MODE__ = 'capture';")
         .inner_size(600.0, 400.0)
         .always_on_top(true)
         .transparent(false)
@@ -54,20 +78,19 @@ fn create_capture_window(app_handle: tauri::AppHandle, app_name: String) -> Resu
         .map_err(|e| format!("Failed to create capture window: {}", e))?;
     println!("[Rust] Capture window created successfully");
 
-    // Ensure window is topmost and focused so it appears above other apps
-    let _ = window.show();
-    let _ = window.set_always_on_top(true);
-    std::thread::sleep(std::time::Duration::from_millis(50));
-    let _ = window.set_focus();
-
-    // Center the window on screen
-    if let Ok(monitor) = window.primary_monitor() {
-        if let Some(m) = monitor {
-            let window_width = 600;
-            let window_height = 400;
-            let x = (m.size().width as i32 - window_width) / 2 + m.position().x;
-            let y = (m.size().height as i32 - window_height) / 2 + m.position().y;
-            let _ = window.set_position(tauri::PhysicalPosition { x, y });
+    // Position the window
+    if let (Some(px), Some(py)) = (x, y) {
+        let _ = window.set_position(tauri::PhysicalPosition { x: px, y: py });
+    } else {
+        // Center the window on screen
+        if let Ok(monitor) = window.primary_monitor() {
+            if let Some(m) = monitor {
+                let window_width = 600;
+                let window_height = 400;
+                let mx = (m.size().width as i32 - window_width) / 2 + m.position().x;
+                let my = (m.size().height as i32 - window_height) / 2 + m.position().y;
+                let _ = window.set_position(tauri::PhysicalPosition { x: mx, y: my });
+            }
         }
     }
 
@@ -75,7 +98,7 @@ fn create_capture_window(app_handle: tauri::AppHandle, app_name: String) -> Resu
 }
 
 #[tauri::command]
-fn create_recall_window(app_handle: tauri::AppHandle, data: Value) -> Result<(), String> {
+async fn create_recall_window(app_handle: tauri::AppHandle, data: Value, x: Option<i32>, y: Option<i32>) -> Result<(), String> {
     // Store data for the window to retrieve
     let window_id = format!("recall_{}", Uuid::new_v4());
     {
@@ -84,8 +107,9 @@ fn create_recall_window(app_handle: tauri::AppHandle, data: Value) -> Result<(),
     }
 
     println!("[Rust] Creating recall window with id: {}", window_id);
-    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("recall.html".into()))
+    let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("index.html".into()))
         .title("Note")
+        .initialization_script("window.__MODE__ = 'recall';")
         .inner_size(700.0, 500.0)
         .always_on_top(true)
         .transparent(false)
@@ -93,20 +117,19 @@ fn create_recall_window(app_handle: tauri::AppHandle, data: Value) -> Result<(),
         .map_err(|e| format!("Failed to create recall window: {}", e))?;
     println!("[Rust] Recall window created successfully");
 
-    // Ensure window is topmost and focused so it appears above other apps
-    let _ = window.show();
-    let _ = window.set_always_on_top(true);
-    std::thread::sleep(std::time::Duration::from_millis(50));
-    let _ = window.set_focus();
-
-    // Center the window on screen
-    if let Ok(monitor) = window.primary_monitor() {
-        if let Some(m) = monitor {
-            let window_width = 700;
-            let window_height = 500;
-            let x = (m.size().width as i32 - window_width) / 2 + m.position().x;
-            let y = (m.size().height as i32 - window_height) / 2 + m.position().y;
-            let _ = window.set_position(tauri::PhysicalPosition { x, y });
+    // Position the window
+    if let (Some(px), Some(py)) = (x, y) {
+        let _ = window.set_position(tauri::PhysicalPosition { x: px, y: py });
+    } else {
+        // Center the window on screen
+        if let Ok(monitor) = window.primary_monitor() {
+            if let Some(m) = monitor {
+                let window_width = 700;
+                let window_height = 500;
+                let mx = (m.size().width as i32 - window_width) / 2 + m.position().x;
+                let my = (m.size().height as i32 - window_height) / 2 + m.position().y;
+                let _ = window.set_position(tauri::PhysicalPosition { x: mx, y: my });
+            }
         }
     }
 
@@ -220,9 +243,48 @@ fn main() {
                                 println!("App closed: {}", app);
                                 let _ = app_handle.emit("app-closed", serde_json::json!({ "app": app }));
                             }
-                            ProcessEvent::Launched(app) => {
-                                println!("App launched: {}", app);
-                                let _ = app_handle.emit("app-launched", serde_json::json!({ "app": app }));
+                            ProcessEvent::Launched(app, pid) => {
+                                println!("App launched: {} (PID: {})", app, pid);
+                                
+                                // Give the app time to create its main window, poll up to 3 seconds
+                                let mut win_x = None;
+                                let mut win_y = None;
+                                
+                                let mut target_pids = vec![pid];
+                                let mut sys = sysinfo::System::new_all();
+                                for (p, process) in sys.processes() {
+                                    if process.name().to_string_lossy().to_string().to_lowercase() == app.to_lowercase() {
+                                        target_pids.push(p.as_u32());
+                                    }
+                                }
+
+                                for _ in 0..15 {
+                                    std::thread::sleep(Duration::from_millis(200));
+                                    unsafe {
+                                        let mut search = WindowSearch { target_pids: target_pids.clone(), found_hwnd: None };
+                                        let _ = EnumWindows(Some(enum_window), LPARAM(&mut search as *mut _ as isize));
+                                        
+                                        if let Some(hwnd) = search.found_hwnd {
+                                            let mut rect = RECT::default();
+                                            if GetWindowRect(hwnd, &mut rect).is_ok() {
+                                                win_x = Some(rect.left);
+                                                win_y = Some(rect.top);
+                                                println!("Found window for {}: x={}, y={}", app, rect.left, rect.top);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                if win_x.is_none() {
+                                    println!("No visible window found for {}", app);
+                                }
+
+                                let _ = app_handle.emit("app-launched", serde_json::json!({ 
+                                    "app": app,
+                                    "x": win_x,
+                                    "y": win_y
+                                }));
                             }
                         }
                     }

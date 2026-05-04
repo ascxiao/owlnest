@@ -171,6 +171,15 @@
   border-color: #e5e7eb;
 }
 
+.quick-app-item.clickable:active {
+  transform: translateY(1px);
+}
+
+.quick-app-item.active {
+  background-color: #e0f2fe;
+  border-color: #7dd3fc;
+}
+
 .quick-app-icon {
   width: 36px;
   height: 36px;

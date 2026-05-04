@@ -5,6 +5,7 @@ interface CaptureNote {
   where_left_off: string;
   next_step: string;
   captured_at: string;
+  recalled_count: number;
 }
 
 interface Props {
@@ -33,12 +34,14 @@ export default function RecallModal({ data, onClose }: Props) {
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = Math.max(0, now.getTime() - date.getTime());
+    const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
     if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
     if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+    if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
     return "Just now";
   };
 
@@ -68,7 +71,7 @@ export default function RecallModal({ data, onClose }: Props) {
 
           <div className="recall-meta">
             <span className="time-ago">
-              Last captured: {formatTime(data.captured_at)}
+              Last captured: {formatTime(data.captured_at)} • Recalled {data.recalled_count || 0} time{(data.recalled_count || 0) !== 1 ? "s" : ""}
             </span>
           </div>
         </div>

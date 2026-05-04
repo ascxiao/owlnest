@@ -26,7 +26,7 @@ sqlite = "0.37.0"
 sysinfo = "0.36.1"
 tokio = { version = "1.52.1", features = ["time", "rt"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-windows = { version = "0.58", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Graphics_Gdi"] }
+windows = { version = "0.58", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
 systemicons = "0.9.0" # Grabs the native Windows/macOS icons
 base64 = "0.22.1"
 winreg = "0.10"

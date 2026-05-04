@@ -1,15 +1,10 @@
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.3s ease-in-out;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 100vw;
+  height: 100vh;
+  background-color: #ffffff;
 }
 
 @keyframes fadeIn {
@@ -23,22 +18,11 @@
 
 .modal-content {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 500px;
-  width: 90%;
-  animation: slideUp 0.4s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(40px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
 .modal-content h2 {
@@ -61,6 +45,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex-grow: 1;
 }
 
 .modal-content textarea {
@@ -69,11 +54,9 @@
   border-radius: 8px;
   font-family: inherit;
   font-size: 14px;
-  resize: vertical;
-  min-height: 80px;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+  resize: none;
+  flex-grow: 1;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .modal-content textarea:focus {
@@ -85,7 +68,7 @@
 .modal-buttons {
   display: flex;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: auto;
 }
 
 .modal-buttons button {
@@ -121,4 +104,24 @@
   background: #d1d5db;
   color: #9ca3af;
   cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal-overlay, .modal-content {
+    background-color: #1a1a1a;
+  }
+  .modal-content h2 { color: #f3f4f6; }
+  .modal-content p { color: #9ca3af; }
+  .modal-content textarea {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #f3f4f6;
+  }
+  .modal-buttons button[type="button"] {
+    background: #374151;
+    color: #f3f4f6;
+  }
+  .modal-buttons button[type="button"]:hover {
+    background: #4b5563;
+  }
 }
