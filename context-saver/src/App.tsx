@@ -268,6 +268,8 @@ export default function App() {
   };
 
   useEffect(() => {
+    const unlistenFns: Array<() => void> = [];
+
     // Listen for process events from Rust backend
     const setupListeners = async () => {
       try {
@@ -338,6 +340,7 @@ export default function App() {
             pendingCaptureTimeouts.current.set(procName, timeoutId);
           },
         );
+        unlistenFns.push(unlistenClosed);
         console.log("[App::setupListeners] app-closed listener registered");
 
         // Listen for app launched events
@@ -409,17 +412,14 @@ export default function App() {
             })();
           },
         );
+        unlistenFns.push(unlistenLaunched);
         console.log("[App::setupListeners] app-launched listener registered");
 
         const unlistenSaved = await listen("capture-saved", () => {
           loadAllNotes();
         });
+        unlistenFns.push(unlistenSaved);
 
-        return () => {
-          unlistenClosed();
-          unlistenLaunched();
-          unlistenSaved();
-        };
       } catch (error) {
         console.error(
           "[App::setupListeners] Failed to setup listeners:",
@@ -436,6 +436,7 @@ export default function App() {
     }, 2000);
 
     return () => {
+      unlistenFns.forEach((fn) => fn());
       window.clearInterval(runningAppsTimer);
     };
   }, []);

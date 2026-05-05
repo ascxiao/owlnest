@@ -253,6 +253,11 @@ export default function Settings({
 
   const [isDarkMode, setIsDarkMode] = useState(() => document.body.classList.contains("dark"));
 
+  // Global Hotkey state
+  const [hotkey, setHotkey] = useState(localStorage.getItem("globalHotkey") || "Ctrl+Shift+O");
+  const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
+  const hotkeyInputRef = useRef<HTMLButtonElement>(null);
+
   const handleAutostartToggle = async () => {
     try {
       if (autostartEnabled) {
@@ -281,6 +286,52 @@ export default function Settings({
       return next;
     });
   };
+
+  const handleHotkeyRecord = () => {
+    setIsRecordingHotkey(true);
+  };
+
+  useEffect(() => {
+    if (!isRecordingHotkey) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Ignore lone modifier presses
+      if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
+
+      const parts: string[] = [];
+      if (e.ctrlKey) parts.push("Ctrl");
+      if (e.altKey) parts.push("Alt");
+      if (e.shiftKey) parts.push("Shift");
+      if (e.metaKey) parts.push("Super");
+
+      // Need at least one modifier
+      if (parts.length === 0) {
+        setIsRecordingHotkey(false);
+        return;
+      }
+
+      let key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      // Normalize common key names
+      if (key === " ") key = "Space";
+      parts.push(key);
+
+      const combo = parts.join("+");
+      setHotkey(combo);
+      localStorage.setItem("globalHotkey", combo);
+      setIsRecordingHotkey(false);
+
+      // Notify backend to update the shortcut
+      invoke("update_global_shortcut", { shortcut: combo }).catch((err) => {
+        console.error("[Settings] Failed to update global shortcut:", err);
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [isRecordingHotkey]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -365,6 +416,39 @@ export default function Settings({
             </div>
           </div>
           
+          <div className="settings-section">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Dashboard Hotkey</h3>
+                <p className="settings-description" style={{ marginTop: "4px" }}>
+                  Global shortcut to show/hide the dashboard from anywhere.
+                </p>
+              </div>
+              <button
+                ref={hotkeyInputRef}
+                className="hotkey-recorder"
+                onClick={handleHotkeyRecord}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "var(--border-radius-sm)",
+                  border: isRecordingHotkey ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                  backgroundColor: isRecordingHotkey ? "var(--accent-secondary)" : "var(--bg-tertiary)",
+                  color: isRecordingHotkey ? "var(--accent-primary)" : "var(--text-primary)",
+                  fontFamily: "inherit",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  minWidth: "140px",
+                  textAlign: "center" as const,
+                  transition: "all 0.2s ease",
+                  outline: "none",
+                }}
+              >
+                {isRecordingHotkey ? "Press keys..." : hotkey}
+              </button>
+            </div>
+          </div>
+
           <div className="settings-section">
             <h3>Tracked Applications</h3>
             <p className="settings-description">

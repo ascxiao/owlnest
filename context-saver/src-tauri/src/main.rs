@@ -235,16 +235,14 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
         .plugin(tauri_plugin_global_shortcut::Builder::new()
-            .with_handler(move |app, shortcut, event| {
+            .with_handler(move |app, _shortcut, event| {
                 if event.state() == ShortcutState::Pressed {
-                    if shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyO) {
-                        if let Some(window) = app.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                    if let Some(window) = app.get_webview_window("main") {
+                        if window.is_visible().unwrap_or(false) {
+                            let _ = window.hide();
+                        } else {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
                     }
                 }
@@ -392,7 +390,65 @@ fn main() {
             get_pending_recall_data,
             commands::archive_capture,
             commands::get_archived_captures,
+            update_global_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[tauri::command]
+async fn update_global_shortcut(app_handle: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    
+    println!("[update_global_shortcut] Updating shortcut to: {}", shortcut);
+    
+    // Unregister all existing shortcuts
+    app_handle.global_shortcut().unregister_all()
+        .map_err(|e| format!("Failed to unregister shortcuts: {}", e))?;
+    
+    // Parse the shortcut string (e.g., "Ctrl+Shift+O") into modifiers + key
+    let parts: Vec<&str> = shortcut.split('+').collect();
+    if parts.is_empty() {
+        return Err("Empty shortcut".to_string());
+    }
+    
+    let mut mods = Modifiers::empty();
+    for part in &parts[..parts.len()-1] {
+        match part.to_lowercase().as_str() {
+            "ctrl" | "control" => mods |= Modifiers::CONTROL,
+            "shift" => mods |= Modifiers::SHIFT,
+            "alt" => mods |= Modifiers::ALT,
+            "super" | "meta" | "win" => mods |= Modifiers::SUPER,
+            _ => {}
+        }
+    }
+    
+    let key_str = parts.last().unwrap_or(&"O");
+    let code = match key_str.to_uppercase().as_str() {
+        "A" => Code::KeyA, "B" => Code::KeyB, "C" => Code::KeyC, "D" => Code::KeyD,
+        "E" => Code::KeyE, "F" => Code::KeyF, "G" => Code::KeyG, "H" => Code::KeyH,
+        "I" => Code::KeyI, "J" => Code::KeyJ, "K" => Code::KeyK, "L" => Code::KeyL,
+        "M" => Code::KeyM, "N" => Code::KeyN, "O" => Code::KeyO, "P" => Code::KeyP,
+        "Q" => Code::KeyQ, "R" => Code::KeyR, "S" => Code::KeyS, "T" => Code::KeyT,
+        "U" => Code::KeyU, "V" => Code::KeyV, "W" => Code::KeyW, "X" => Code::KeyX,
+        "Y" => Code::KeyY, "Z" => Code::KeyZ,
+        "0" => Code::Digit0, "1" => Code::Digit1, "2" => Code::Digit2, "3" => Code::Digit3,
+        "4" => Code::Digit4, "5" => Code::Digit5, "6" => Code::Digit6, "7" => Code::Digit7,
+        "8" => Code::Digit8, "9" => Code::Digit9,
+        "F1" => Code::F1, "F2" => Code::F2, "F3" => Code::F3, "F4" => Code::F4,
+        "F5" => Code::F5, "F6" => Code::F6, "F7" => Code::F7, "F8" => Code::F8,
+        "F9" => Code::F9, "F10" => Code::F10, "F11" => Code::F11, "F12" => Code::F12,
+        "SPACE" => Code::Space,
+        "ESCAPE" => Code::Escape,
+        "ENTER" => Code::Enter,
+        "TAB" => Code::Tab,
+        _ => return Err(format!("Unknown key: {}", key_str)),
+    };
+    
+    let new_shortcut = Shortcut::new(Some(mods), code);
+    app_handle.global_shortcut().register(new_shortcut)
+        .map_err(|e| format!("Failed to register shortcut: {}", e))?;
+    
+    println!("[update_global_shortcut] Successfully registered: {}", shortcut);
+    Ok(())
+}
