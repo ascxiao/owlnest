@@ -23,6 +23,7 @@ use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProces
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 struct WindowSearch {
     target_pids: Vec<u32>,
@@ -233,6 +234,23 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
+        .plugin(tauri_plugin_global_shortcut::Builder::new()
+            .with_handler(move |app, shortcut, event| {
+                if event.state() == ShortcutState::Pressed {
+                    if shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyO) {
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                }
+            })
+            .build()
+        )
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if window.label() == "main" {
@@ -372,6 +390,8 @@ fn main() {
             create_recall_window,
             get_pending_capture_data,
             get_pending_recall_data,
+            commands::archive_capture,
+            commands::get_archived_captures,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

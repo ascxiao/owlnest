@@ -12,6 +12,14 @@ export default function CaptureModal({ app_name, onSave, onSkip }: Props) {
   const [nextStep, setNextStep] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) onSkip();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onSkip, isSubmitting]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("[CaptureModal] handleSubmit called");

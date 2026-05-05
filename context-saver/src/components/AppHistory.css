@@ -1,8 +1,7 @@
 .app-history {
-  background-color: white;
+  background-color: transparent;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  padding: 24px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -15,7 +14,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #9ca3af;
+  color: var(--text-tertiary);
   font-size: 16px;
   text-align: center;
 }
@@ -26,21 +25,21 @@
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .app-history-header h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .history-count {
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
-  background-color: #f3f4f6;
+  color: var(--text-secondary);
+  background-color: var(--bg-tertiary);
   padding: 4px 8px;
   border-radius: 4px;
 }
@@ -57,15 +56,15 @@
   display: flex;
   gap: 16px;
   padding: 16px;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
   transition: all 0.2s ease;
 }
 
 .history-item:hover {
-  background-color: #f3f4f6;
-  border-color: #d1d5db;
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color-hover);
 }
 
 .history-item-timestamp {
@@ -74,18 +73,18 @@
   gap: 4px;
   min-width: 100px;
   padding-right: 12px;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--border-color);
 }
 
 .timestamp-relative {
   font-size: 12px;
   font-weight: 600;
-  color: #0369a1;
+  color: var(--accent-primary);
 }
 
 .timestamp-absolute {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-tertiary);
 }
 
 .history-item-content {
@@ -104,7 +103,7 @@
 .history-section label {
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -112,7 +111,7 @@
 .history-section p {
   margin: 0;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -122,13 +121,13 @@
   align-items: center;
   gap: 8px;
   padding-left: 12px;
-  border-left: 1px solid #e5e7eb;
+  border-left: 1px solid var(--border-color);
   min-width: 60px;
 }
 
 .recall-badge {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -138,8 +137,8 @@
 .recall-icon {
   width: 16px;
   height: 16px;
-  color: #6b7280;
-  fill: #6b7280;
+  color: var(--text-tertiary);
+  fill: var(--text-tertiary);
 }
 
 /* Scrollbar styling */
@@ -152,10 +151,10 @@
 }
 
 .app-history-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--border-color-hover);
   border-radius: 3px;
 }
 
 .app-history-list::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--text-tertiary);
 }

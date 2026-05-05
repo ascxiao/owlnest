@@ -9,6 +9,8 @@ interface Props {
   runningApps: AppInfo[];
   selectedApp: string | null;
   onSelectApp: (app: string) => void;
+  currentView: "dashboard" | "archive";
+  onViewChange: (view: "dashboard" | "archive") => void;
   onSettingsClick: () => void;
 }
 
@@ -16,12 +18,40 @@ export default function Sidebar({
   runningApps,
   selectedApp,
   onSelectApp,
+  currentView,
+  onViewChange,
   onSettingsClick,
 }: Props) {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
         <h1 className="sidebar-title">Owlnest</h1>
+      </div>
+
+      <div className="sidebar-nav">
+        <button 
+          className={`sidebar-nav-item ${currentView === "dashboard" ? "active" : ""}`}
+          onClick={() => onViewChange("dashboard")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          Dashboard
+        </button>
+        <button 
+          className={`sidebar-nav-item ${currentView === "archive" ? "active" : ""}`}
+          onClick={() => onViewChange("archive")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="21 8 21 21 3 21 3 8"></polyline>
+            <rect x="1" y="3" width="22" height="5"></rect>
+            <line x1="10" y1="12" x2="14" y2="12"></line>
+          </svg>
+          Archive
+        </button>
       </div>
 
       <div className="sidebar-content">

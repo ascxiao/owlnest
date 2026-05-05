@@ -251,6 +251,8 @@ export default function Settings({
     });
   };
 
+  const [isDarkMode, setIsDarkMode] = useState(() => document.body.classList.contains("dark"));
+
   const handleAutostartToggle = async () => {
     try {
       if (autostartEnabled) {
@@ -264,6 +266,20 @@ export default function Settings({
       console.error("[Settings] Failed to toggle autostart:", err);
       setSaveError(`Autostart toggle failed: ${String(err)}`);
     }
+  };
+
+  const handleThemeToggle = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      if (next) {
+        document.body.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.body.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -324,6 +340,25 @@ export default function Settings({
                   type="checkbox" 
                   checked={autostartEnabled} 
                   onChange={handleAutostartToggle} 
+                />
+                <span className="settings-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="settings-section">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Dark Mode</h3>
+                <p className="settings-description" style={{ marginTop: "4px" }}>
+                  Toggle the dark theme appearance.
+                </p>
+              </div>
+              <label className="settings-toggle">
+                <input 
+                  type="checkbox" 
+                  checked={isDarkMode} 
+                  onChange={handleThemeToggle} 
                 />
                 <span className="settings-toggle-slider"></span>
               </label>

@@ -15,9 +15,10 @@ interface CaptureNote {
 interface Props {
   app: string;
   notes: CaptureNote[];
+  onArchiveNote: (id: string) => void;
 }
 
-export default function AppHistory({ app, notes }: Props) {
+export default function AppHistory({ app, notes, onArchiveNote }: Props) {
   if (!app || notes.length === 0) {
     return (
       <div className="app-history">
@@ -62,6 +63,26 @@ export default function AppHistory({ app, notes }: Props) {
                 <div className="history-section">
                   <label>Next Step</label>
                   <p>{note.next_step}</p>
+                </div>
+
+                <div className="note-actions">
+                  <button 
+                    className="action-btn"
+                    onClick={() => {
+                      const text = `Left Off: ${note.where_left_off}\nNext Step: ${note.next_step}`;
+                      navigator.clipboard.writeText(text);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    Copy
+                  </button>
+                  <button 
+                    className="action-btn"
+                    onClick={() => onArchiveNote(note.id)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                    Archive
+                  </button>
                 </div>
               </div>
 

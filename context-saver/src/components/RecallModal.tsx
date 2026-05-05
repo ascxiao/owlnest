@@ -19,11 +19,18 @@ export default function RecallModal({ data, onClose }: Props) {
   // Auto-close after 8 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      setFadeOut(true);
-      setTimeout(onClose, 500); // Wait for fade animation
+      handleClose();
     }, 8000);
 
-    return () => clearTimeout(timer);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "Enter") handleClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [onClose]);
 
   const handleClose = () => {

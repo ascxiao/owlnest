@@ -22,9 +22,10 @@ interface Props {
   trackedApps: AppInfo[];
   selectedApp: string | null;
   onSelectApp: (app: string) => void;
+  onArchiveNote: (id: string) => void;
 }
 
-export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp }: Props) {
+export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp, onArchiveNote }: Props) {
   const [showAllTrackedApps, setShowAllTrackedApps] = useState(false);
   const previewCount = Math.min(trackedApps.length, 5);
 
@@ -176,6 +177,26 @@ export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp
                   </svg>
                   <span>{latestNote.recalled_count}x recalled</span>
                 </div>
+
+                <div className="note-actions">
+                  <button 
+                    className="action-btn"
+                    onClick={() => {
+                      const text = `Left Off: ${latestNote.where_left_off}\nNext Step: ${latestNote.next_step}`;
+                      navigator.clipboard.writeText(text);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    Copy
+                  </button>
+                  <button 
+                    className="action-btn"
+                    onClick={() => onArchiveNote(latestNote.id)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                    Archive
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="empty-state">
@@ -189,7 +210,7 @@ export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp
         {/* App History Card - Full width if selected, otherwise empty state */}
         <div className="dashboard-card app-history-full">
           {selectedApp ? (
-            <AppHistory app={selectedApp} notes={selectedAppNotes} />
+            <AppHistory app={selectedApp} notes={selectedAppNotes} onArchiveNote={onArchiveNote} />
           ) : (
             <div className="empty-state-full">
               <p>Select an application from the sidebar to see its history</p>

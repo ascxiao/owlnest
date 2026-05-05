@@ -31,12 +31,14 @@ pub fn init_db(conn: &Connection) -> Result<(), sqlite::Error> {
             where_left_off TEXT NOT NULL,
             next_step TEXT NOT NULL,
             captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            recalled_count INTEGER DEFAULT 0
+            recalled_count INTEGER DEFAULT 0,
+            archived INTEGER DEFAULT 0
         )
     "#);
     
     // Migration: gracefully add recalled_count if it doesn't exist
     let _ = conn.execute("ALTER TABLE capture_notes ADD COLUMN recalled_count INTEGER DEFAULT 0");
+    let _ = conn.execute("ALTER TABLE capture_notes ADD COLUMN archived INTEGER DEFAULT 0");
     
     match create_result {
         Ok(_) => {

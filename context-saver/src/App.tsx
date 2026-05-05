@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import Dashboard from "./components/Dashboard";
+import ArchiveView from "./components/ArchiveView";
 import Sidebar from "./components/Sidebar";
 import Settings from "./components/Settings.tsx";
 import { AppInfo } from "./utils/appIcons";
@@ -17,10 +18,13 @@ interface CaptureNote {
 }
 
 export default function App() {
+  // Owlnest v2 - Enhanced UI
+  const [currentView, setCurrentView] = useState<"dashboard" | "archive">("dashboard");
   const [showSettings, setShowSettings] = useState(false);
   const [currentApp, setCurrentApp] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [allNotes, setAllNotes] = useState<CaptureNote[]>([]);
+  const [archivedNotes, setArchivedNotes] = useState<CaptureNote[]>([]);
   const [runningApps, setRunningApps] = useState<AppInfo[]>([]);
   const [trackedApps, setTrackedApps] = useState<AppInfo[]>([]);
   const [allAvailableApps, setAllAvailableApps] = useState<AppInfo[]>([]);
@@ -36,6 +40,7 @@ export default function App() {
   // Refs to access latest trackedApps/allAvailableApps inside event handlers
   const trackedAppsRef = useRef<AppInfo[]>(trackedApps);
   const allAvailableAppsRef = useRef<AppInfo[]>(allAvailableApps);
+  const pendingCaptureTimeouts = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     trackedAppsRef.current = trackedApps;
   }, [trackedApps]);
@@ -99,12 +104,20 @@ export default function App() {
   // Load all notes on startup
   useEffect(() => {
     const initializeAppData = async () => {
-      const [_, __, allApps] = await Promise.all([
+      const [_, __, ___, allApps] = await Promise.all([
         loadAllNotes(),
+        loadArchivedNotes(),
         loadRunningApps(),
         loadAllAvailableApps()
       ]);
       await loadTrackedApps(allApps);
+
+      // Load theme
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") {
+        document.body.classList.add("dark");
+      }
+
       setIsInitialized(true);
     };
 
@@ -133,6 +146,24 @@ export default function App() {
       setAllNotes(notes || []);
     } catch (error) {
       console.error("Failed to load notes:", error);
+    }
+  };
+
+  const loadArchivedNotes = async () => {
+    try {
+      const notes = await invoke<CaptureNote[]>("get_archived_captures");
+      setArchivedNotes(notes || []);
+    } catch (error) {
+      console.error("Failed to load archived notes:", error);
+    }
+  };
+
+  const archiveNote = async (id: string) => {
+    try {
+      await invoke("archive_capture", { id });
+      await Promise.all([loadAllNotes(), loadArchivedNotes()]);
+    } catch (error) {
+      console.error("Failed to archive note:", error);
     }
   };
 
@@ -253,56 +284,58 @@ export default function App() {
             const procName = event.payload.app;
             console.log("[App] App closed event received:", procName);
 
-            // Open capture window instead of modal
-            setCurrentApp(procName);
+            // Smart Debounce: Wait 5 seconds before showing capture popup
+            const timeoutId = window.setTimeout(() => {
+              pendingCaptureTimeouts.current.delete(procName);
 
-            // Map the process to a tracked app in background using refs, then refresh running apps
-            (async () => {
-              try {
-                const normalize = (s: string) => (s || "").toLowerCase();
-                const pLower = normalize(procName);
+              // Open capture window instead of modal
+              setCurrentApp(procName);
 
-                const trackedList = trackedAppsRef.current || [];
-                const availableList = allAvailableAppsRef.current || [];
+              // Map the process to a tracked app in background using refs, then refresh running apps
+              (async () => {
+                try {
+                  const normalize = (s: string) => (s || "").toLowerCase();
+                  const pLower = normalize(procName);
 
-                const matchesProc = (a: AppInfo) => {
-                  const path = normalize(a.path || "");
-                  const name = normalize(a.name || "");
-                  if (!path && !name) return false;
-                  // exact exe/basename match
-                  if (
-                    path.endsWith(pLower) ||
-                    path.endsWith(pLower + ".exe") ||
-                    path.includes(pLower)
-                  )
-                    return true;
-                  if (name.includes(pLower)) return true;
-                  return false;
-                };
+                  const trackedList = trackedAppsRef.current || [];
+                  const availableList = allAvailableAppsRef.current || [];
 
-                let matched = trackedList.find(matchesProc);
-                if (!matched) matched = availableList.find(matchesProc);
+                  const matchesProc = (a: AppInfo) => {
+                    const path = normalize(a.path || "");
+                    const name = normalize(a.name || "");
+                    if (!path && !name) return false;
+                    if (
+                      path.endsWith(pLower) ||
+                      path.endsWith(pLower + ".exe") ||
+                      path.includes(pLower)
+                    )
+                      return true;
+                    if (name.includes(pLower)) return true;
+                    return false;
+                  };
 
-                if (matched) {
-                  const current = matched.name || matched.path;
-                  console.log(
-                    "[App] Mapped closed process to tracked app:",
-                    current,
-                  );
-                  setCurrentApp(current);
-                  invoke("create_capture_window", { appName: current, x: null, y: null }).catch(console.error);
-                } else {
-                  invoke("create_capture_window", { appName: procName, x: null, y: null }).catch(console.error);
+                  let matched = trackedList.find(matchesProc);
+                  if (!matched) matched = availableList.find(matchesProc);
+
+                  if (matched) {
+                    const current = matched.name || matched.path;
+                    console.log("[App] Mapped closed process to tracked app:", current);
+                    setCurrentApp(current);
+                    invoke("create_capture_window", { appName: current, x: null, y: null }).catch(console.error);
+                  } else {
+                    invoke("create_capture_window", { appName: procName, x: null, y: null }).catch(console.error);
+                  }
+
+                  // Refresh running apps so UI reflects closed app removal
+                  await loadRunningApps();
+                } catch (err) {
+                  console.error("[App] Error mapping closed process:", err);
+                  await loadRunningApps();
                 }
+              })();
+            }, 5000);
 
-                // Refresh running apps so UI reflects closed app removal
-                await loadRunningApps();
-              } catch (err) {
-                console.error("[App] Error mapping closed process:", err);
-                // still refresh running apps
-                await loadRunningApps();
-              }
-            })();
+            pendingCaptureTimeouts.current.set(procName, timeoutId);
           },
         );
         console.log("[App::setupListeners] app-closed listener registered");
@@ -316,6 +349,15 @@ export default function App() {
             const targetX = event.payload.x;
             const targetY = event.payload.y;
             console.log("[App] App launched event received:", app, "pos:", targetX, targetY);
+
+            // Cancel any pending capture for this app
+            const pendingTimeout = pendingCaptureTimeouts.current.get(app);
+            if (pendingTimeout) {
+              console.log("[App] Debounce: Cancelling pending capture for", app);
+              window.clearTimeout(pendingTimeout);
+              pendingCaptureTimeouts.current.delete(app);
+            }
+
             // Refresh running apps when one launches
             loadRunningApps();
 
@@ -417,15 +459,26 @@ export default function App() {
         runningApps={runningTrackedApps}
         selectedApp={selectedApp}
         onSelectApp={setSelectedApp}
+        currentView={currentView}
+        onViewChange={setCurrentView}
         onSettingsClick={() => setShowSettings(true)}
       />
 
-      <Dashboard
-        notes={allNotes}
-        trackedApps={trackedApps}
-        selectedApp={selectedApp}
-        onSelectApp={setSelectedApp}
-      />
+      {currentView === "dashboard" ? (
+        <Dashboard
+          notes={allNotes}
+          trackedApps={trackedApps}
+          selectedApp={selectedApp}
+          onSelectApp={setSelectedApp}
+          onArchiveNote={archiveNote}
+        />
+      ) : (
+        <ArchiveView 
+          notes={archivedNotes} 
+          trackedApps={trackedApps}
+          onArchiveNote={archiveNote}
+        />
+      )}
     </div>
   );
 }

@@ -119,6 +119,7 @@ pub fn get_latest_capture(app_name: String) -> Result<Option<CaptureNote>, Strin
             next_step,
             captured_at,
             recalled_count: recalled_count + 1,
+            archived: 0,
         }))
     } else {
         Ok(None)
@@ -131,13 +132,14 @@ pub struct CaptureNote {
     pub next_step: String,
     pub captured_at: String,
     pub recalled_count: i64,
+    pub archived: i64,
 }
 
 #[tauri::command]
 pub fn get_all_captures() -> Result<Vec<FullCaptureNote>, String> {
     let conn = crate::db::get_db().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, app_name, where_left_off, next_step, captured_at, recalled_count FROM capture_notes ORDER BY captured_at DESC")
+        .prepare("SELECT id, app_name, where_left_off, next_step, captured_at, recalled_count, archived FROM capture_notes WHERE archived = 0 ORDER BY captured_at DESC")
         .map_err(|e| e.to_string())?;
     
     let mut notes = Vec::new();
@@ -155,6 +157,7 @@ pub fn get_all_captures() -> Result<Vec<FullCaptureNote>, String> {
                 s
             },
             recalled_count: stmt.read::<i64, usize>(5).unwrap_or(0),
+            archived: stmt.read::<i64, usize>(6).unwrap_or(0),
         });
     }
     
@@ -183,6 +186,50 @@ pub struct FullCaptureNote {
     pub next_step: String,
     pub captured_at: String,
     pub recalled_count: i64,
+    pub archived: i64,
+}
+
+#[tauri::command]
+pub fn archive_capture(id: String) -> Result<(), String> {
+    let conn = crate::db::get_db().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("UPDATE capture_notes SET archived = 1 WHERE id = ?")
+        .map_err(|e| e.to_string())?;
+    
+    stmt.bind((1, &id[..])).map_err(|e| e.to_string())?;
+    stmt.next().map_err(|e| e.to_string())?;
+    
+    println!("[archive_capture] Archived note with ID: {}", id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_archived_captures() -> Result<Vec<FullCaptureNote>, String> {
+    let conn = crate::db::get_db().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, app_name, where_left_off, next_step, captured_at, recalled_count, archived FROM capture_notes WHERE archived = 1 ORDER BY captured_at DESC")
+        .map_err(|e| e.to_string())?;
+    
+    let mut notes = Vec::new();
+    while let Ok(sqlite::State::Row) = stmt.next() {
+        notes.push(FullCaptureNote {
+            id: stmt.read::<String, usize>(0).map_err(|e| e.to_string())?,
+            app_name: stmt.read::<String, usize>(1).map_err(|e| e.to_string())?,
+            where_left_off: stmt.read::<String, usize>(2).map_err(|e| e.to_string())?,
+            next_step: stmt.read::<String, usize>(3).map_err(|e| e.to_string())?,
+            captured_at: {
+                let mut s = stmt.read::<String, usize>(4).map_err(|e| e.to_string())?;
+                if !s.ends_with('Z') {
+                    s = s.replace(" ", "T") + "Z";
+                }
+                s
+            },
+            recalled_count: stmt.read::<i64, usize>(5).unwrap_or(0),
+            archived: stmt.read::<i64, usize>(6).unwrap_or(1),
+        });
+    }
+    
+    Ok(notes)
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
