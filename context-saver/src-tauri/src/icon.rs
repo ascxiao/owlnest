@@ -181,14 +181,13 @@ fn collect_registry_installed_apps(apps: &mut Vec<AppInfo>) {
                                 // try InstallLocation + look for exe inside
                                 let install_loc: Result<String, _> = subkey.get_value("InstallLocation");
                                 if let Ok(loc) = install_loc {
-                                    // try to find first exe in that folder
+                                    // try to find exes in that folder
                                     let path = Path::new(&loc);
                                     if path.exists() && path.is_dir() {
-                                        if let Ok(mut entries) = std::fs::read_dir(path) {
-                                            if let Some(Ok(entry)) = entries.find(|e| e.as_ref().map(|e| e.path().extension().and_then(|x| x.to_str()).map(|s| s.eq_ignore_ascii_case("exe")).unwrap_or(false)).unwrap_or(false)) {
-                                                exe_path = entry.path().to_string_lossy().to_string();
-                                            }
-                                        }
+                                        collect_executables(path, apps, 3);
+                                        // Since we collected the actual executables inside the install dir, 
+                                        // we don't need to add the generic empty-path name.
+                                        continue;
                                     }
                                 }
                             }
@@ -259,7 +258,8 @@ pub fn get_all_installed_apps() -> Vec<AppInfo> {
     
     #[cfg(target_os = "windows")]
     {
-        let system = System::new_all();
+        let mut system = System::new();
+        system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         
         // First, get currently running applications and their paths
         for process in system.processes().values() {
@@ -276,8 +276,9 @@ pub fn get_all_installed_apps() -> Vec<AppInfo> {
         apps.dedup_by(|a, b| a.name == b.name);
 
         // Recursively scan common installation directories so non-running apps appear too.
-        collect_executables(Path::new(r"C:\Program Files"), &mut apps, 4);
-        collect_executables(Path::new(r"C:\Program Files (x86)"), &mut apps, 4);
+        // Reduced depth from 4 to 1 to significantly improve startup time.
+        collect_executables(Path::new(r"C:\Program Files"), &mut apps, 1);
+        collect_executables(Path::new(r"C:\Program Files (x86)"), &mut apps, 1);
 
         // Steam libraries and common creative suites often live outside the top-level install roots.
         // Attempt to parse Steam libraryfolders.vdf to locate game libraries.
@@ -289,20 +290,20 @@ pub fn get_all_installed_apps() -> Vec<AppInfo> {
         for root in &steam_roots {
             if root.exists() {
                 // add the default steam install
-                collect_executables(root, &mut apps, 6);
+                collect_executables(root, &mut apps, 3);
                 // parse additional libraries if present
                 for lib in collect_steam_libraries(root) {
-                    collect_executables(&lib.join("steamapps").join("common"), &mut apps, 6);
+                    collect_executables(&lib.join("steamapps").join("common"), &mut apps, 3);
                 }
             }
         }
 
-        collect_executables(Path::new(r"C:\Program Files\Adobe"), &mut apps, 4);
-        collect_executables(Path::new(r"C:\Program Files (x86)\Adobe"), &mut apps, 4);
-        collect_executables(Path::new(r"C:\Program Files\Microsoft Office"), &mut apps, 4);
-        collect_executables(Path::new(r"C:\Program Files\Microsoft Office 15"), &mut apps, 4);
-        collect_executables(Path::new(r"C:\Program Files\Microsoft Office\root"), &mut apps, 4);
-        collect_executables(Path::new(r"C:\Program Files (x86)\Microsoft Office"), &mut apps, 4);
+        collect_executables(Path::new(r"C:\Program Files\Adobe"), &mut apps, 2);
+        collect_executables(Path::new(r"C:\Program Files (x86)\Adobe"), &mut apps, 2);
+        collect_executables(Path::new(r"C:\Program Files\Microsoft Office"), &mut apps, 2);
+        collect_executables(Path::new(r"C:\Program Files\Microsoft Office 15"), &mut apps, 2);
+        collect_executables(Path::new(r"C:\Program Files\Microsoft Office\root"), &mut apps, 2);
+        collect_executables(Path::new(r"C:\Program Files (x86)\Microsoft Office"), &mut apps, 2);
 
         // Additionally add programs from the registry Uninstall keys for proper display names
         collect_registry_installed_apps(&mut apps);
@@ -330,7 +331,8 @@ pub fn get_all_installed_apps() -> Vec<AppInfo> {
 
 /// Get running applications with their paths and icons
 pub fn get_running_apps_with_icons() -> Vec<AppInfo> {
-    let system = System::new_all();
+    let mut system = System::new();
+    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
     let mut apps = Vec::new();
     let mut seen_names = std::collections::HashSet::new();
 

@@ -21,7 +21,7 @@ export default function Sidebar({
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <h1 className="sidebar-title">Context Saver</h1>
+        <h1 className="sidebar-title">Owlnest</h1>
       </div>
 
       <div className="sidebar-content">

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "context-saver",
+  "productName": "owlnest",
   "version": "0.1.0",
-  "identifier": "me.kaluroos.context-saver",
+  "identifier": "me.kaluroos.owlnest",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,8 @@
       {
         "title": "Owlnest",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": false
       }
     ],
     "security": {

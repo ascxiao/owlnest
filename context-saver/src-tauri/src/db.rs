@@ -2,7 +2,7 @@ use sqlite::Connection;
 use std::path::PathBuf;
 
 pub fn get_db() -> Result<Connection, sqlite::Error> {
-    let db_path = PathBuf::from("context_saver.db");
+    let db_path = PathBuf::from("owlnest.db");
     eprintln!("[db::get_db] Opening database at: {:?}", db_path);
     println!("[db] Opening database at: {:?}", db_path);
     let result = Connection::open(db_path);

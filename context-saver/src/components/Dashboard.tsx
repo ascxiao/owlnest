@@ -59,9 +59,9 @@ export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h1>Your Context Dashboard</h1>
+        <h1>Your Owlnest Dashboard</h1>
         <p className="dashboard-subtitle">
-          Manage your mental context and app history
+          Manage your app history and notes
         </p>
       </div>
 
@@ -180,7 +180,7 @@ export default function Dashboard({ notes, trackedApps, selectedApp, onSelectApp
             ) : (
               <div className="empty-state">
                 <p>No notes captured yet</p>
-                <p className="empty-hint">Close an app to capture context</p>
+                <p className="empty-hint">Close an app to capture a note</p>
               </div>
             )}
           </div>

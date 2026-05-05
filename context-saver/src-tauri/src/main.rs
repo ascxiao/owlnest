@@ -20,6 +20,9 @@ use once_cell::sync::Lazy;
 use uuid::Uuid;
 use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, GetWindowRect, IsWindowVisible};
+use tauri::Manager;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 struct WindowSearch {
     target_pids: Vec<u32>,
@@ -67,10 +70,15 @@ async fn create_capture_window(app_handle: tauri::AppHandle, app_name: String, x
         *data = Some(PendingCapture { appName: app_name.clone() });
     }
 
+    let init_script = format!(
+        "window.__MODE__ = 'capture'; window.__CAPTURE_DATA__ = {{ appName: {} }};",
+        serde_json::to_string(&app_name).unwrap()
+    );
+
     println!("[Rust] Creating capture window with id: {} for app: {}", window_id, app_name);
     let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("index.html".into()))
         .title("Save Note")
-        .initialization_script("window.__MODE__ = 'capture';")
+        .initialization_script(&init_script)
         .inner_size(600.0, 400.0)
         .always_on_top(true)
         .transparent(false)
@@ -103,13 +111,18 @@ async fn create_recall_window(app_handle: tauri::AppHandle, data: Value, x: Opti
     let window_id = format!("recall_{}", Uuid::new_v4());
     {
         let mut recall_data = PENDING_RECALL_DATA.lock().unwrap();
-        *recall_data = Some(data);
+        *recall_data = Some(data.clone());
     }
+
+    let init_script = format!(
+        "window.__MODE__ = 'recall'; window.__RECALL_DATA__ = {};",
+        serde_json::to_string(&data).unwrap()
+    );
 
     println!("[Rust] Creating recall window with id: {}", window_id);
     let window = tauri::WebviewWindowBuilder::new(&app_handle, &window_id, tauri::WebviewUrl::App("index.html".into()))
         .title("Note")
-        .initialization_script("window.__MODE__ = 'recall';")
+        .initialization_script(&init_script)
         .inner_size(700.0, 500.0)
         .always_on_top(true)
         .transparent(false)
@@ -153,7 +166,7 @@ fn get_pending_recall_data() -> Option<Value> {
 }
 
 #[tauri::command]
-fn get_all_apps() -> Vec<AppInfo> {
+async fn get_all_apps() -> Vec<AppInfo> {
     let mut apps = Vec::new();
 
     for app in icon::get_all_installed_apps() {
@@ -219,9 +232,60 @@ fn main() {
     let monitor = Arc::new(ProcessMonitor::new(tracked_apps_from_db()));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                if window.label() == "main" {
+                    window.hide().unwrap();
+                    api.prevent_close();
+                }
+            }
+            _ => {}
+        })
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let monitor_clone = monitor.clone();
+
+            // Setup Tray Icon
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Show Dashboard", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            // Check for autostart hidden flag
+            let args: Vec<String> = std::env::args().collect();
+            if !args.contains(&"--hidden".to_string()) {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
 
             // Refresh tracked apps periodically so settings changes take effect without restart.
             let monitor_refresh = monitor.clone();
@@ -251,7 +315,8 @@ fn main() {
                                 let mut win_y = None;
                                 
                                 let mut target_pids = vec![pid];
-                                let mut sys = sysinfo::System::new_all();
+                                let mut sys = sysinfo::System::new();
+                                sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
                                 for (p, process) in sys.processes() {
                                     if process.name().to_string_lossy().to_string().to_lowercase() == app.to_lowercase() {
                                         target_pids.push(p.as_u32());

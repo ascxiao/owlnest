@@ -49,7 +49,7 @@ export default function CaptureModal({ app_name, onSave, onSkip }: Props) {
   return (
     <div className="modal-overlay" onClick={onSkip}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h2>Context Saved</h2>
+        <h2>Note Saved</h2>
         <p>
           Just closing {app_name}. Help your future self remember where you left
           off.

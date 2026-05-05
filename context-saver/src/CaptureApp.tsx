@@ -15,7 +15,10 @@ export default function CaptureApp() {
     async function loadData() {
       addLog("Calling get_pending_capture_data...");
       try {
-        const data = await invoke<{ appName: string } | null>("get_pending_capture_data");
+        let data = (window as any).__CAPTURE_DATA__;
+        if (!data) {
+          data = await invoke<{ appName: string } | null>("get_pending_capture_data");
+        }
         addLog(`Received: ${JSON.stringify(data)}`);
         if (data && data.appName) {
           setAppName(data.appName);

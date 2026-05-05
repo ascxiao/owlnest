@@ -171,7 +171,7 @@ pub fn get_monitored_apps() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn get_running_apps() -> Result<Vec<crate::icon::AppInfo>, String> {
+pub async fn get_running_apps() -> Result<Vec<crate::icon::AppInfo>, String> {
     Ok(crate::icon::get_running_apps_with_icons())
 }
 

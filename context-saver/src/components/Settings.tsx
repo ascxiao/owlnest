@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   getAppDisplayName,
   getAppIconElement,
@@ -50,13 +51,25 @@ export default function Settings({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
 
   // Ref for apps list to reset scroll
   const appsListRef = useRef<HTMLDivElement>(null);
 
   // Initialize catalog and selection once on mount
   useEffect(() => {
-    setCatalogApps(dedupeApps(allAvailableApps || []));
+    const merged = [...(allAvailableApps || [])];
+    const availablePaths = new Set(merged.map(a => (a.path || "").toLowerCase()));
+    
+    trackedApps.forEach(t => {
+      const p = (t.path || "").toLowerCase();
+      if (p && !availablePaths.has(p)) {
+        merged.push(t);
+        availablePaths.add(p);
+      }
+    });
+
+    setCatalogApps(dedupeApps(merged));
     // initialize selection from trackedApps
     const initial = new Set(trackedApps.map((a) => a.path));
     setSelectedPaths(initial);
@@ -72,8 +85,20 @@ export default function Settings({
             apps?.length || 0,
             "apps from backend",
           );
-          if (apps && apps.length > 0) setCatalogApps(dedupeApps(apps));
-          else setCatalogApps([]);
+          if (apps && apps.length > 0) {
+            const merged = [...apps];
+            const availablePaths = new Set(merged.map(a => (a.path || "").toLowerCase()));
+            trackedApps.forEach(t => {
+              const p = (t.path || "").toLowerCase();
+              if (p && !availablePaths.has(p)) {
+                merged.push(t);
+                availablePaths.add(p);
+              }
+            });
+            setCatalogApps(dedupeApps(merged));
+          } else {
+            setCatalogApps(dedupeApps(trackedApps));
+          }
         } catch (e) {
           console.error("[Settings] Failed to load apps:", e);
           setSaveError(`Could not load app list: ${String(e)}`);
@@ -82,6 +107,16 @@ export default function Settings({
         }
       })();
     }
+
+    // Check autostart status
+    (async () => {
+      try {
+        const enabled = await isEnabled();
+        setAutostartEnabled(enabled);
+      } catch (err) {
+        console.error("[Settings] Autostart check failed:", err);
+      }
+    })();
     // run only once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -216,6 +251,21 @@ export default function Settings({
     });
   };
 
+  const handleAutostartToggle = async () => {
+    try {
+      if (autostartEnabled) {
+        await disable();
+        setAutostartEnabled(false);
+      } else {
+        await enable();
+        setAutostartEnabled(true);
+      }
+    } catch (err) {
+      console.error("[Settings] Failed to toggle autostart:", err);
+      setSaveError(`Autostart toggle failed: ${String(err)}`);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaveError(null);
@@ -261,6 +311,25 @@ export default function Settings({
         </div>
 
         <div className="settings-content">
+          <div className="settings-section">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Start on Boot</h3>
+                <p className="settings-description" style={{ marginTop: "4px" }}>
+                  Automatically launch Owlnest in the system tray when your computer starts.
+                </p>
+              </div>
+              <label className="settings-toggle">
+                <input 
+                  type="checkbox" 
+                  checked={autostartEnabled} 
+                  onChange={handleAutostartToggle} 
+                />
+                <span className="settings-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          
           <div className="settings-section">
             <h3>Tracked Applications</h3>
             <p className="settings-description">

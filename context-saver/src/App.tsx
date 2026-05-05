@@ -99,9 +99,11 @@ export default function App() {
   // Load all notes on startup
   useEffect(() => {
     const initializeAppData = async () => {
-      await loadAllNotes();
-      await loadRunningApps();
-      const allApps = await loadAllAvailableApps();
+      const [_, __, allApps] = await Promise.all([
+        loadAllNotes(),
+        loadRunningApps(),
+        loadAllAvailableApps()
+      ]);
       await loadTrackedApps(allApps);
       setIsInitialized(true);
     };
@@ -156,7 +158,7 @@ export default function App() {
         const tracked = trackedRecords
           .map(
             (rec) =>
-              allApps.find((a) => a.path === rec.path) || {
+              allApps.find((a) => (a.path || "").toLowerCase() === (rec.path || "").toLowerCase()) || {
                 name: rec.name,
                 path: rec.path,
                 icon: null,

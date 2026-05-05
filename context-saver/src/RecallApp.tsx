@@ -14,7 +14,10 @@ export default function RecallApp() {
     async function loadData() {
       addLog("Calling get_pending_recall_data...");
       try {
-        const d = await invoke<any>("get_pending_recall_data");
+        let d = (window as any).__RECALL_DATA__;
+        if (!d) {
+          d = await invoke<any>("get_pending_recall_data");
+        }
         addLog(`Received: ${JSON.stringify(d)}`);
         if (d) {
           setData(d);
